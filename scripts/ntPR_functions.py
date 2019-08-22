@@ -1,31 +1,35 @@
-'''
-Criado por: Henrique Ortiz
-
-'''
-
-
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.chrome.options import Options
 from bs4 import BeautifulSoup as bs
+from getpass import getpass
 import pandas as pd
 
-
-# Abrindo navegador
-driver = webdriver.Chrome()
-
 # Função para logar no site
-def site_login(url,cpf,senha):
+def site_login(driver,url,cpf,senha):
+
     driver.get(url)
     driver.find_element_by_id('attribute').send_keys(cpf)
     driver.find_element_by_id ('password').send_keys(senha)      
     driver.find_element_by_css_selector('.action-button').send_keys(Keys.RETURN)
-
+    
+    try:
+        driver.find_element_by_xpath('/html[1]/body[1]/div[1]/div[2]/div[1]/form[1]/div[2]/button[1]').click()
+        site_login(driver,url,cpf,senha)
+    except:
+        True
+    
 # Função para navegar pelo site e coletar informações do mês atual
-def nt_mes(url):
+def coleta(driver,url, cpf, n):
 
     # Acessa página informada, url do extrato.
     driver.get(url)
     
+    #Verificar qual opção escolhida
+    if n == 2:
+        driver.find_element_by_id('btVoltarId').click()
+    else:
+        True
     # Coleta todos os links da tabela com as notas. 
     elems = driver.find_element_by_css_selector('.grid-verde')
     links = elems.find_elements_by_xpath("//*[@href]")
@@ -86,29 +90,11 @@ def nt_mes(url):
     df = pd.DataFrame(final_list,columns=['item_nota','produto','qtd','unidade','preço','local','data','hora','pagamento','nr_nota'])
     columns_order = ['local','nr_nota','item_nota','produto','qtd','unidade','preço','data','hora','pagamento']
     df = df.reindex(columns=columns_order)
-    df.to_csv('notas_ntPR_atual.csv',sep=';')
+
+    if n == 2:
+        df.to_csv('../%s_notas_anterior.csv'%(cpf),sep=';')
+    else:
+        df.to_csv('../%s_notas_atual.csv'%(cpf),sep=';')
 
     # Volta para página do extrato e efetua o logoff
     driver.get('https://notaparana.pr.gov.br/nfprweb/Extrato')
-    driver.find_element_by_id('user-logout').click()
-
-
-
-# Everything happens here!!!
-def main():
-
-    # Solicita cpf e senha para acessar site!
-    cpf   = input('Informe seu cpf (sem pontos ou traços): ')
-    senha = input('informe sua senha: ' ) 
-
-    # Urls de acesso às paginas necessárias.
-    url     = 'https://notaparana.pr.gov.br/nfprweb'
-    url_ext = 'https://notaparana.pr.gov.br/nfprweb/Extrato'
-
-    # Executa função para acessar o site.
-    site_login(url,cpf,senha)
-    
-    # Executa função para coletar os dados das notas fiscais.
-    nt_mes(url_ext)
-
-main()
